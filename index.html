@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>你的灵魂天气 · Soul Weather</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(160deg, #a8d8ff 0%, #d6ecff 55%, #fff3d6 100%);
+    transition: background 1s ease;
+    padding: 20px;
+  }
+  .card {
+    width: 100%;
+    max-width: 520px;
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: 24px;
+    box-shadow: 0 12px 40px rgba(60, 90, 140, 0.18);
+    padding: 36px 32px;
+    text-align: center;
+    animation: fadeUp 0.5s ease;
+  }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+  .emoji-big { font-size: 64px; margin-bottom: 12px; }
+  h1 { font-size: 26px; color: #2b3a55; margin-bottom: 8px; }
+  .subtitle { color: #7a8aa5; font-size: 14px; line-height: 1.7; margin-bottom: 24px; }
+  .btn {
+    display: inline-block;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(135deg, #5b9dff, #7cc4ff);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 13px 36px;
+    border-radius: 999px;
+    box-shadow: 0 6px 18px rgba(91, 157, 255, 0.4);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(91, 157, 255, 0.45); }
+  .btn:active { transform: translateY(0); }
+  .progress { height: 8px; background: #e6eef8; border-radius: 999px; overflow: hidden; margin-bottom: 24px; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, #5b9dff, #7cc4ff); border-radius: 999px; transition: width 0.4s ease; }
+  .q-count { color: #9aa9c2; font-size: 13px; margin-bottom: 10px; }
+  .q-text { font-size: 20px; color: #2b3a55; font-weight: 600; margin-bottom: 24px; line-height: 1.5; }
+  .options { display: flex; flex-direction: column; gap: 12px; }
+  .option {
+    text-align: left;
+    border: 2px solid #e6eef8;
+    background: #fff;
+    border-radius: 14px;
+    padding: 14px 18px;
+    font-size: 15px;
+    color: #3d4e6d;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+  }
+  .option:hover { border-color: #5b9dff; background: #f2f8ff; transform: translateX(4px); }
+  .result-emoji { font-size: 80px; margin-bottom: 8px; animation: pop 0.6s ease; }
+  @keyframes pop { 0% { transform: scale(0.4); opacity: 0; } 70% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
+  .result-title { font-size: 30px; color: #2b3a55; margin-bottom: 4px; }
+  .result-en { color: #9aa9c2; font-size: 13px; letter-spacing: 2px; margin-bottom: 18px; }
+  .result-desc { color: #4a5a75; font-size: 15px; line-height: 1.9; text-align: left; margin-bottom: 20px; }
+  .tips { background: #f2f8ff; border-radius: 14px; padding: 14px 18px; text-align: left; font-size: 14px; line-height: 2; color: #3d4e6d; margin-bottom: 24px; }
+  .tips b { color: #2b7de9; }
+  .footer { margin-top: 20px; color: #9aa9c2; font-size: 12px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="card">
+  <!-- 开始页 -->
+  <div id="start-screen">
+    <div class="emoji-big">🌤️</div>
+    <h1>你的灵魂天气</h1>
+    <p class="subtitle">每个人心里都有一片天空。<br>回答 6 道题，看看你的灵魂今天是晴空万里，<br>还是正在下雷阵雨。</p>
+    <button class="btn" onclick="startQuiz()">开始测试</button>
+    <p class="footer">纯属娱乐，结果仅供一笑</p>
+  </div>
+
+  <!-- 答题页 -->
+  <div id="quiz-screen" class="hidden">
+    <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
+    <div class="q-count" id="q-count"></div>
+    <div class="q-text" id="q-text"></div>
+    <div class="options" id="options"></div>
+  </div>
+
+  <!-- 结果页 -->
+  <div id="result-screen" class="hidden">
+    <div class="result-emoji" id="result-emoji"></div>
+    <div class="result-title" id="result-title"></div>
+    <div class="result-en" id="result-en"></div>
+    <p class="result-desc" id="result-desc"></p>
+    <div class="tips" id="result-tips"></div>
+    <button class="btn" onclick="restart()">再测一次</button>
+    <p class="footer">把结果截图发给朋友，看看你们谁的天气更离谱</p>
+  </div>
+</div>
+
+<script>
+// 每道题的每个选项对应一种天气类型
+const QUESTIONS = [
+  {
+    q: "周末早上醒来，你第一件事是？",
+    options: [
+      { text: "刷手机，看看世界发生了什么", type: "storm" },
+      { text: "赖床，能躺一分钟是一分钟", type: "rain" },
+      { text: "起床吃饭，规律作息", type: "sun" },
+      { text: "直接开电脑，游戏启动", type: "cloud" },
+    ],
+  },
+  {
+    q: "朋友突然说「今晚出去玩」，你会？",
+    options: [
+      { text: "走！现在就出门", type: "sun" },
+      { text: "先问去哪、和谁、几点回", type: "cloud" },
+      { text: "看心情，可能去也可能不去", type: "rain" },
+      { text: "婉拒，在宿舍挺好的", type: "storm" },
+    ],
+  },
+  {
+    q: "考试周到了，你的状态是？",
+    options: [
+      { text: "早就复习完了，稳", type: "sun" },
+      { text: "临时抱佛脚，通宵突击", type: "storm" },
+      { text: "一边焦虑一边玩手机", type: "rain" },
+      { text: "佛系，随缘，能过就行", type: "cloud" },
+    ],
+  },
+  {
+    q: "下雨天没带伞，你会？",
+    options: [
+      { text: "淋雨跑回去，雨算什么", type: "storm" },
+      { text: "路边买把伞，顺便买杯奶茶", type: "sun" },
+      { text: "找个地方躲雨，等它停", type: "cloud" },
+      { text: "发消息叫朋友来接我", type: "rain" },
+    ],
+  },
+  {
+    q: "深夜 12 点，你通常在干嘛？",
+    options: [
+      { text: "睡了，早睡早起身体好", type: "sun" },
+      { text: "刷短视频，根本停不下来", type: "cloud" },
+      { text: "赶作业，DDL 是第一生产力", type: "storm" },
+      { text: "戴着耳机听歌，有点 emo", type: "rain" },
+    ],
+  },
+  {
+    q: "如果可以选一种超能力，你选？",
+    options: [
+      { text: "瞬移，想去哪就去哪", type: "sun" },
+      { text: "读心术，看穿所有人", type: "storm" },
+      { text: "时间暂停，作业写不完就停表", type: "cloud" },
+      { text: "隐身，安安静静做自己", type: "rain" },
+    ],
+  },
+];
+
+const RESULTS = {
+  sun: {
+    emoji: "☀️", title: "晴空万里", en: "SUNNY SOUL",
+    desc: "你的灵魂是万里无云的大晴天。能量满满，说走就走，朋友圈里的气氛担当。烦恼在你这儿活不过三分钟，晒晒太阳就散了。唯一的风险是：晴天太久，容易晒伤——记得给自己留点阴凉。",
+    tips: "<b>宜：</b>约朋友出门、晒太阳、表白、立 flag<br><b>忌：</b>宅在宿舍、熬夜、一个人扛所有事",
+    bg: "linear-gradient(160deg, #ffd76e 0%, #ffe9a8 55%, #fff7dd 100%)",
+  },
+  cloud: {
+    emoji: "⛅", title: "多云转晴", en: "PARTLY CLOUDY",
+    desc: "你的灵魂是多云的天，云层下面藏着太阳。慢热，但熟了之后比谁都暖；做事喜欢先想清楚，不爱凑热闹。别人看你云淡风轻，其实你心里门儿清，只是不说而已。",
+    tips: "<b>宜：</b>独处充电、慢慢来、相信直觉<br><b>忌：</b>被催着做决定、硬融不喜欢的圈子",
+    bg: "linear-gradient(160deg, #b8c6db 0%, #dbe6f3 55%, #f5f9ff 100%)",
+  },
+  rain: {
+    emoji: "🌧️", title: "绵绵细雨", en: "GENTLE RAIN",
+    desc: "你的灵魂正下着绵绵细雨。细腻、敏感，能察觉别人注意不到的情绪，是一群人里最温柔的那个。但雨下久了容易潮——别把所有心事都自己淋着，找个人说说，雨就停了。",
+    tips: "<b>宜：</b>听歌、写点东西、找人聊聊<br><b>忌：</b>深夜emo、一个人硬扛、过度解读",
+    bg: "linear-gradient(160deg, #7fb2d9 0%, #a8cbe8 55%, #dbeeff 100%)",
+  },
+  storm: {
+    emoji: "⛈️", title: "雷阵雨", en: "THUNDERSTORM",
+    desc: "你的灵魂是夏天的雷阵雨：情绪来得快，去得也快。上一秒还在emo，下一秒就能因为一顿好吃的满血复活。爆发力极强，DDL 前一晚的你无人能敌。雨过天晴之后，你还是那个最鲜活的你。",
+    tips: "<b>宜：</b>运动发泄、吃顿好的、睡一觉再说<br><b>忌：</b>上头时做决定、连熬两夜、憋着不说",
+    bg: "linear-gradient(160deg, #6a7ba2 0%, #93a3c4 55%, #c3cfe6 100%)",
+  },
+};
+
+let current = 0;
+let scores = { sun: 0, cloud: 0, rain: 0, storm: 0 };
+
+function startQuiz() {
+  current = 0;
+  scores = { sun: 0, cloud: 0, rain: 0, storm: 0 };
+  document.getElementById("start-screen").classList.add("hidden");
+  document.getElementById("result-screen").classList.add("hidden");
+  document.getElementById("quiz-screen").classList.remove("hidden");
+  showQuestion();
+}
+
+function showQuestion() {
+  const q = QUESTIONS[current];
+  document.getElementById("q-count").textContent = `第 ${current + 1} / ${QUESTIONS.length} 题`;
+  document.getElementById("q-text").textContent = q.q;
+  document.getElementById("progress-bar").style.width = ((current + 1) / QUESTIONS.length * 100) + "%";
+  const box = document.getElementById("options");
+  box.innerHTML = "";
+  q.options.forEach((opt) => {
+    const btn = document.createElement("button");
+    btn.className = "option";
+    btn.textContent = opt.text;
+    btn.onclick = () => {
+      scores[opt.type]++;
+      current++;
+      if (current < QUESTIONS.length) showQuestion();
+      else showResult();
+    };
+    box.appendChild(btn);
+  });
+}
+
+function showResult() {
+  // 得分最高的天气就是你的灵魂天气（并列时取先出现的）
+  const order = ["sun", "cloud", "rain", "storm"];
+  let best = order[0];
+  order.forEach((t) => { if (scores[t] > scores[best]) best = t; });
+  const r = RESULTS[best];
+  document.body.style.background = r.bg;
+  document.getElementById("result-emoji").textContent = r.emoji;
+  document.getElementById("result-title").textContent = r.title;
+  document.getElementById("result-en").textContent = r.en;
+  document.getElementById("result-desc").textContent = r.desc;
+  document.getElementById("result-tips").innerHTML = r.tips;
+  document.getElementById("quiz-screen").classList.add("hidden");
+  document.getElementById("result-screen").classList.remove("hidden");
+}
+
+function restart() {
+  document.body.style.background = "";
+  document.getElementById("result-screen").classList.add("hidden");
+  document.getElementById("start-screen").classList.remove("hidden");
+}
+</script>
+</body>
+</html>
